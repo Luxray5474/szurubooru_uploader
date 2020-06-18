@@ -1,0 +1,44 @@
+#homeTitle {
+  color: #B3B1AD
+}
+
+#newHomeTitle {
+  color: #0A0E14;
+  background-color: #1F2430
+}
+
+#homeDesc {
+  color: #3D424D
+}
+
+#openFolder {
+  color: #E6B450;
+  border: none;
+  outline: none
+}
+
+#openFolder::hover {
+  text-decoration: underline;
+}
+
+#fileImportSuccessful {
+  color: #B3B1AD;
+}
+
+QTableView {
+  border: none;
+}
+
+#titleProgressbarHBox {
+  background: #1F2430;
+  border: red 10px
+}
+
+QProgressBar::chunk:horizontal {
+  background-color: #FFB454
+}
+
+QProgressBar:horizontal {
+  border:none;
+  color: #B3B1AD
+}
