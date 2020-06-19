@@ -251,38 +251,54 @@ class ImportFilesThreadClass(QThread):
         if file_ext in FileExts.image_exts: # For image files...
 
           # Read image from file
-          im = cv2.imread(file.path)
+          try:
+            
+            im = cv2.imread(file.path)
 
-          # Resize image
-          im = self.proper_resize(im)
+          except cv2.error().code as e: # TODO: Add separate function to show why loading failed in grid
+            
+            print(f"Error while loading {file.name} with error {e}")
 
-          # Encode image into bytearrray
-          img_byte_array = bytes(cv2.imencode(".png", im)[1])
+          else:
 
-          # Send bytearray to the thumbnail adding function
-          self.add_thumbnail_to_grid.emit(img_byte_array)
+            # Resize image
+            im = self.proper_resize(im)
 
-          # Cleanup
-          im = None
-          img_byte_array = None
+            # Encode image into bytearrray
+            img_byte_array = bytes(cv2.imencode(".png", im)[1])
+
+            # Send bytearray to the thumbnail adding function
+            self.add_thumbnail_to_grid.emit(img_byte_array)
+
+            # Cleanup
+            im = None
+            img_byte_array = None
 
         elif file_ext in FileExts.video_exts: # For video files...
           
           # Read video file
-          frames = cv2.VideoCapture(file.path)
+          try:
 
-          # Resize frame | !!! .read()'s result is a tuple, the second value is the ndarray we need.
-          first_frame = self.proper_resize(frames.read()[1])
+            frames = cv2.VideoCapture(file.path)
 
-          # Encode first frame into bytearray
-          img_byte_array = bytes(cv2.imencode(".png", first_frame)[1])
+          except cv2.error().code as e: # TODO: same as the images
+          
+            print(f"Error while loading {file.name} with error {e}")
 
-          # Send bytearray
-          self.add_thumbnail_to_grid.emit(img_byte_array)
+          else:
 
-          # Cleanup
-          frames.release()
-          cv2.destroyAllWindows()
+            # Resize frame | !!! .read()'s result is a tuple, the second value is the ndarray we need.
+            first_frame = self.proper_resize(frames.read()[1])
+
+            # Encode first frame into bytearray
+            img_byte_array = bytes(cv2.imencode(".png", first_frame)[1])
+
+            # Send bytearray
+            self.add_thumbnail_to_grid.emit(img_byte_array)
+
+            # Cleanup
+            frames.release()
+            cv2.destroyAllWindows()
             
     self.finished.emit()
 
