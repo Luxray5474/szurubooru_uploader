@@ -237,41 +237,72 @@ class ImportFilesThreadClass(QThread):
     self.files = os.scandir(self.folder_path)
 
   def run(self):
+
     print("Loading images...")
 
     for file in self.files:
+
       print(f"Processing \"{file.name}\"")
 
-      if file.is_file():
+      if file.is_file(): # Only process files, not directories
 
-        file_name = file.path
         file_ext = file.name.split('.')[-1]
 
-        # Behave differently depending on filetype
         if file_ext in FileExts.image_exts: # For image files...
 
-          self.generate_thumbnail(file)
-    
+          # Read image from file
+          im = cv2.imread(file.path)
+
+          # Resize image
+          im = self.proper_resize(im)
+
+          # Encode image into bytearrray
+          img_byte_array = bytes(cv2.imencode(".png", im)[1])
+
+          # Send bytearray to the thumbnail adding function
+          self.add_thumbnail_to_grid.emit(img_byte_array)
+
+          # Cleanup
+          im = None
+          img_byte_array = None
+
+        elif file_ext in FileExts.video_exts: # For video files...
+          
+          # Read video file
+          frames = cv2.VideoCapture(file.path)
+
+          # Resize frame | !!! .read()'s result is a tuple, the second value is the ndarray we need.
+          first_frame = self.proper_resize(frames.read()[1])
+
+          # Encode first frame into bytearray
+          img_byte_array = bytes(cv2.imencode(".png", first_frame)[1])
+
+          # Send bytearray
+          self.add_thumbnail_to_grid.emit(img_byte_array)
+
+          # Cleanup
+          frames.release()
+          cv2.destroyAllWindows()
+            
     self.finished.emit()
 
-  def generate_thumbnail(self, file):
-      
-    im = cv2.imread(file.path)
+  def proper_resize(self, img_data):
 
-    if(im.shape[1] >= im.shape[0]): # If image is wider than it is tall
-      new_side_length = int(im.shape[0] * (self.thumb_width / (im.shape[1])))
-      im = cv2.resize(im, (self.thumb_width, new_side_length))
-    elif (im.shape[1] <= im.shape[0]): # vice versa
-      new_side_length = int(im.shape[1] * (self.thumb_height / (im.shape[0])))
-      im = cv2.resize(im, (new_side_length, self.thumb_width))
+    width = img_data.shape[1]
+    height = img_data.shape[0]
 
-    img_byte_array = bytes(cv2.imencode(".png", im)[1])
+    if(width >= height):
 
-    self.add_thumbnail_to_grid.emit(img_byte_array)
+      new_side_length = int(height * (self.thumb_width / (width)))
+      img_data = cv2.resize(img_data, (self.thumb_width, new_side_length))
 
+    elif (width <= height):
 
-
-
+      new_side_length = int(width * (self.thumb_height / (height)))
+      img_data = cv2.resize(img_data, (new_side_length, self.thumb_width))
+    
+    return img_data
+    
 if __name__ == '__main__':
   app = QApplication(sys.argv)
   app.setStyleSheet(open(STYLES, 'r').read())
