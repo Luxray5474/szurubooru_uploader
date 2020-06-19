@@ -31,8 +31,10 @@ class Colors:
   mirage_bg =    "#1F2430"
 
   def rgb(color):
+
     h = color.lstrip('#')
     return(tuple(int(h[i:i+2], 16) for i in (0, 2, 4)))
   
   def QCol(color):
+    
     return(QColor(*Colors.rgb(color)))

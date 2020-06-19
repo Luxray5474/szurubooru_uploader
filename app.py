@@ -25,6 +25,7 @@ application_start = time.time()
 class App(QMainWindow):
 
   def __init__(self):
+
     super().__init__()
 
     self.title = "szurubooru_uploader"
@@ -51,10 +52,12 @@ class App(QMainWindow):
 class MainGUI(QWidget):
 
   def __init__(self, parent):
+
     super(MainGUI, self).__init__(parent)
 
     self.cell_width = 175
     self.cell_height = 175
+    self.thumb_grid_column_count = 7 # Will be gone soon
 
     self.layout = QVBoxLayout(self)
 
@@ -89,10 +92,10 @@ class MainGUI(QWidget):
     self.thumb_grid_model = QStandardItemModel()
     self.thumb_grid_view = QTableView()
 
-    self.thumb_grid_view.horizontalHeader().hide()
+    self.thumb_grid_view.horizontalHeader().hide() # Hide headers
     self.thumb_grid_view.verticalHeader().hide()
 
-    self.thumb_grid_view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+    self.thumb_grid_view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel) # Smooth scrolling
     self.thumb_grid_view.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
 
     self.thumb_grid_view.setFont(Fonts.NotoSansDisplay("Regular", 10))
@@ -104,6 +107,7 @@ class MainGUI(QWidget):
     self.loading_progressbar.setAlignment(Qt.AlignCenter)
     self.loading_progressbar.setFixedHeight(10)
 
+    # Assemble initial UI
     self.layout.addStretch(1)
     self.layout.addWidget(self.home_title)
     self.layout.addWidget(self.home_desc)
@@ -114,23 +118,34 @@ class MainGUI(QWidget):
     self.setLayout(self.layout)
 
   def count_files(self, folder_path):
+
     self.file_count = 0
 
     for root, dirs, files in os.walk(folder_path):
+
       for name in files:
+
         ext = name.split('.')[-1]
         if ext in FileExts.image_exts or ext in FileExts.video_exts or ext in FileExts.misc_exts:
+
           self.file_count += 1
 
   def pick_folder(self):
+
     print("Picking folder...")
-    
+
+    # Launch file picker if debug is diabled
     if dbg.ENABLED:
+
       folder_path = dbg.PATH
+
     else:
+
       folder_path = QFileDialog.getExistingDirectory(self, "Select folder", "./", QFileDialog.ShowDirsOnly)
 
+    # If we get a file then move on
     if folder_path != '':
+
       self.count_files(folder_path)
 
       print(f"Selected \"{folder_path}\", contains {self.file_count} files.")
@@ -141,35 +156,38 @@ class MainGUI(QWidget):
       self.start_import_files_thread(folder_path)
 
   def reorganize_ui(self):
+
+    # Remove widgets in preperation for repositioning
     self.layout.removeWidget(self.home_title)
     self.layout.removeWidget(self.home_desc)
     self.layout.removeWidget(self.open_folder)
+    self.home_desc.close()
 
+    # Renovate home_title
     self.home_title.setFont(Fonts.NotoSansDisplay("Light Italic", 14))
     self.home_title.setAlignment(Qt.AlignLeft)
     self.home_title.setContentsMargins(15, 5, 0, 0)
 
+    # Re-add widgets
     self.layout.addWidget(self.thumb_grid_view)
     self.layout.addWidget(self.loading_progressbar)
     self.layout.insertWidget(0, self.home_title)
 
-    self.home_desc.close()
-
-    #self.layout.setStretch(0, 0)
+    # Re-adjust stretches
     self.layout.setStretch(2, 0)
-    #self.layout.setStretch(5, 0)
-
     self.layout.setStretchFactor(self.thumb_grid_view, 150)
 
   def start_import_files_thread(self, folder_path):
+
     print("Starting thread...")
 
-    self.thumb_grid_column_count = 7
+    # Will be gone soon
     self.thumb_grid_column_idx = 0
     self.thumb_grid_row_idx = 0
 
     self.reorganize_ui()
 
+    # Prepare progressbar
     self.loading_progressbar.setMaximum(self.file_count)
     self.loading_progressbar.setFormat("%v/%m files inported...")
 
@@ -179,44 +197,59 @@ class MainGUI(QWidget):
     self.import_files_thread.finished.connect(self.post_load)
     self.import_files_thread.add_thumbnail_to_grid.connect(self.add_thumbnail_to_grid)
 
-    self.load_start = time.time() # Start timing loading
+    # Start timing loading process
+    self.load_start = time.time()
 
     self.import_files_thread.start()
 
   # SIGNALS
 
   def add_thumbnail_to_grid(self, thumbnail):
+
+    # Increment progressbar value
     self.loading_progressbar.setValue(self.loading_progressbar.value() + 1)
 
     # Put icon thumbnails in cells
-    item_thumbnail = QPixmap()
-    item = QStandardItem()
+    item_thumbnail = QPixmap() # Initialize Pixmap
+    item = QStandardItem() # Initialize item (or cell)
 
+    # Load thumbnail bytearray
     item_thumbnail.loadFromData(thumbnail)
 
+    # Set data as cell icon (DecorationRole)
     item.setData(QVariant(item_thumbnail), Qt.DecorationRole)
 
+    # Place the data into table cell
     self.thumb_grid_model.setItem(self.thumb_grid_row_idx, self.thumb_grid_column_idx, item)
 
+    # Update the table after we add something
     self.thumb_grid_view.setModel(self.thumb_grid_model)
 
     # Set column widths for the first row only
     if self.thumb_grid_row_idx == 0:
+
       self.thumb_grid_view.setColumnWidth(self.thumb_grid_column_idx, self.cell_width)
 
     # Move to next item
     if self.thumb_grid_column_idx < self.thumb_grid_column_count:
+
       if self.thumb_grid_column_idx == 0:
 
         # Set row height if starting new row
         self.thumb_grid_view.setRowHeight(self.thumb_grid_row_idx, self.cell_height)
+
+      # If we aren't at the end of the column limit, move to next column
       self.thumb_grid_column_idx += 1
+
     else:
+
+      # "wrap" to new line
       self.thumb_grid_row_idx += 1
       self.thumb_grid_column_idx = 0
 
   def post_load(self):
-
+    
+    # Remove progressbar
     self.loading_progressbar.setVisible(False)
     self.layout.removeWidget(self.loading_progressbar)
     self.loading_progressbar.close()
@@ -229,6 +262,7 @@ class ImportFilesThreadClass(QThread):
   add_thumbnail_to_grid = pyqtSignal(bytes)
 
   def __init__(self, folder_path, thumb_width, thumb_height):
+
     super(ImportFilesThreadClass, self).__init__()
 
     self.folder_path = folder_path
@@ -240,11 +274,13 @@ class ImportFilesThreadClass(QThread):
 
     print("Loading images...")
 
+    # Go through each file
     for file in self.files:
 
       print(f"Processing \"{file.name}\"")
 
-      if file.is_file(): # Only process files, not directories
+      # Only process files, not directories
+      if file.is_file():
 
         file_ext = file.name.split('.')[-1]
 
@@ -287,7 +323,7 @@ class ImportFilesThreadClass(QThread):
 
           else:
 
-            # Resize frame | !!! .read()'s result is a tuple, the second value is the ndarray we need.
+            # Resize frame | !!! .read() result is a tuple, the 2nd value is the ndarray we need.
             first_frame = self.proper_resize(frames.read()[1])
 
             # Encode first frame into bytearray
@@ -307,6 +343,8 @@ class ImportFilesThreadClass(QThread):
     width = img_data.shape[1]
     height = img_data.shape[0]
 
+    # Calculates the proportion of the length of the longest side of the image to the desired
+    # longth of said side, then decreases the size of the other side by the proportion.
     if(width >= height):
 
       new_side_length = int(height * (self.thumb_width / (width)))
@@ -320,6 +358,8 @@ class ImportFilesThreadClass(QThread):
     return img_data
     
 if __name__ == '__main__':
+  
+  # Initialize app
   app = QApplication(sys.argv)
   app.setStyleSheet(open(STYLES, 'r').read())
   ex = App()
