@@ -6,7 +6,7 @@ import cv2
 # PyQt Imports TODO: make this look better
 from PyQt5.QtCore       import Qt, pyqtSignal, QSize, QVariant
 from PyQt5.QtGui        import QPixmap, QIcon, QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets    import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QProgressBar, QTableView, QFileDialog, QAbstractItemView
+from PyQt5.QtWidgets    import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QProgressBar, QTableView, QFileDialog, QAbstractItemView, QScrollArea, QLayout
 
 from FileExts           import FileExts     # File extension lists
 from Debug              import Debug as dbg # Debug variables
@@ -14,6 +14,7 @@ from Fonts              import Fonts        # Fonts Class
 from Colors             import Colors       # Colors Class
 
 from ImportFiles        import ImportFiles  # ImporttFiles QThread
+from FlowLayout         import FlowLayout   # Flow layout
 
 WIDTH = 900                                 # Starting width
 HEIGHT = 500                                # Starting height
@@ -90,17 +91,12 @@ class MainGUI(QWidget):
     self.open_folder.setIcon(QIcon(QPixmap(FILE_IMPORT)))
     self.open_folder.setIconSize(QSize(14, 14))
 
-    # Create main photos grid (but don't insert!)
-    self.thumb_grid_model = QStandardItemModel()
-    self.thumb_grid_view = QTableView()
-
-    self.thumb_grid_view.horizontalHeader().hide() # Hide headers
-    self.thumb_grid_view.verticalHeader().hide()
-
-    self.thumb_grid_view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel) # Smooth scrolling
-    self.thumb_grid_view.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-
-    self.thumb_grid_view.setFont(Fonts.NotoSansDisplay("Regular", 10))
+    # Create main thumbnail layout, wrapper, and scroll area (but don't insert)
+    # The QScrollArea is the parent of a QWidget which is the wrapper and parent of a QLayout
+    # Why? I have no idea
+    self.thumb_layout_scroll_area = QScrollArea()
+    self.thumb_layout_wrapper = QWidget(self.thumb_layout_scroll_area)
+    self.thumb_layout = FlowLayout(self.thumb_layout_wrapper, -1, 5, 5)
 
     # Create progressbar (but don't insert!)
     self.loading_progressbar = QProgressBar()
@@ -118,6 +114,13 @@ class MainGUI(QWidget):
     self.layout.addStretch(1)
 
     self.setLayout(self.layout)
+
+  def resizeEvent(self, event):
+    # Override the resizeEvent of the main window to update thumb_layout_wrapper's size
+    # This is important since the size of the layout is fully dependent on the size of the wrapper
+    # And obviously, the wrapper's size won't automatically change
+
+    self.thumb_layout_wrapper.setFixedSize(self.thumb_layout_scroll_area.size())
 
   def count_files(self, folder_path):
 
@@ -170,22 +173,19 @@ class MainGUI(QWidget):
     self.home_title.setAlignment(Qt.AlignLeft)
     self.home_title.setContentsMargins(15, 5, 0, 0)
 
-    # Re-add widgets
-    self.layout.addWidget(self.thumb_grid_view)
+    # Re-add widgets and layouts
+    self.layout.addWidget(self.thumb_layout_scroll_area)
     self.layout.addWidget(self.loading_progressbar)
     self.layout.insertWidget(0, self.home_title)
 
     # Re-adjust stretches
     self.layout.setStretch(2, 0)
-    self.layout.setStretchFactor(self.thumb_grid_view, 150)
+    self.layout.setStretchFactor(self.thumb_layout_scroll_area, 150)
+
 
   def start_import_files_thread(self, folder_path):
 
     print("Starting thread...")
-
-    # Will be gone soon
-    self.thumb_grid_column_idx = 0
-    self.thumb_grid_row_idx = 0
 
     self.reorganize_ui()
 
@@ -211,43 +211,24 @@ class MainGUI(QWidget):
     # Increment progressbar value
     self.loading_progressbar.setValue(self.loading_progressbar.value() + 1)
 
-    # Put icon thumbnails in cells
-    item_thumbnail = QPixmap() # Initialize Pixmap
-    item = QStandardItem() # Initialize item (or cell)
+    # Set the size of the wrapper for thumb_layout to the size of the QScrollArea it's in
+    # For some reason you can only do this 
+    self.thumb_layout_wrapper.setFixedSize(self.thumb_layout_scroll_area.size())
 
-    # Load thumbnail bytearray
-    item_thumbnail.loadFromData(thumbnail)
+    # Create item to add to our layout, and pixmap
+    self.item = QLabel()
+    self.thumb_data = QPixmap()
+    
+    # Load bytearray into the pixmap
+    self.thumb_data.loadFromData(thumbnail)
 
-    # Set data as cell icon (DecorationRole)
-    item.setData(QVariant(item_thumbnail), Qt.DecorationRole)
+    # Attach the pixmap to the label
+    self.item.setPixmap(self.thumb_data)
 
-    # Place the data into table cell
-    self.thumb_grid_model.setItem(self.thumb_grid_row_idx, self.thumb_grid_column_idx, item)
-
-    # Update the table after we add something
-    self.thumb_grid_view.setModel(self.thumb_grid_model)
-
-    # Set column widths for the first row only
-    if self.thumb_grid_row_idx == 0:
-
-      self.thumb_grid_view.setColumnWidth(self.thumb_grid_column_idx, self.cell_width)
-
-    # Move to next item
-    if self.thumb_grid_column_idx < self.thumb_grid_column_count:
-
-      if self.thumb_grid_column_idx == 0:
-
-        # Set row height if starting new row
-        self.thumb_grid_view.setRowHeight(self.thumb_grid_row_idx, self.cell_height)
-
-      # If we aren't at the end of the column limit, move to next column
-      self.thumb_grid_column_idx += 1
-
-    else:
-
-      # "wrap" to new line
-      self.thumb_grid_row_idx += 1
-      self.thumb_grid_column_idx = 0
+    # Add the item to the layout
+    self.item.setFixedWidth(self.item.sizeHint().width())
+    self.thumb_layout.addWidget(self.item)
+    self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
 
   def post_load(self):
 
@@ -255,6 +236,7 @@ class MainGUI(QWidget):
     self.loading_progressbar.setVisible(False)
     self.layout.removeWidget(self.loading_progressbar)
     self.loading_progressbar.close()
+
 
     print(f"Loading finished in {(time.time() - self.load_start) * 1000}ms.")
 
