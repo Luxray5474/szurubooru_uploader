@@ -16,6 +16,8 @@ from Colors             import Colors       # Colors Class
 from ImportFiles        import ImportFiles  # ImporttFiles QThread
 from FlowLayout         import FlowLayout   # Flow layout
 
+from items.DatesectionItem import DatesectionItem # Datesection thumb layout item
+
 WIDTH = 900                                 # Starting width
 HEIGHT = 500                                # Starting height
 
@@ -58,9 +60,13 @@ class MainGUI(QWidget):
 
     super(MainGUI, self).__init__(parent)
 
-    self.cell_width = 175
-    self.cell_height = 175
-    self.thumb_grid_column_count = 7 # Will be gone soon
+    # The height of each thumbnail
+    self.thumb_height = 200
+
+    # A list of thumbnails, no markers, each entry is a dict:
+    # {"idx": int, "date": str, "time": str, "safety": str, "tags": list)
+    # "idx" being the thumbnail's location in the layout
+    self.thumb_list = []
 
     self.layout = QVBoxLayout(self)
 
@@ -97,13 +103,15 @@ class MainGUI(QWidget):
     self.thumb_layout_scroll_area = QScrollArea()
     self.thumb_layout_wrapper = QWidget(self.thumb_layout_scroll_area)
     self.thumb_layout = FlowLayout(self.thumb_layout_wrapper, -1, 5, 5)
+    
+    self.thumb_layout_wrapper.setVisible(False)
 
     # Create progressbar (but don't insert!)
     self.loading_progressbar = QProgressBar()
 
-    self.loading_progressbar.setFont(Fonts.NotoSansDisplay("Regular", 5))
-    self.loading_progressbar.setAlignment(Qt.AlignCenter)
-    self.loading_progressbar.setFixedHeight(10)
+    self.loading_progressbar.setFont(Fonts.NotoSansDisplay("Regular", 6))
+    self.loading_progressbar.setAlignment(Qt.AlignLeft)
+    self.loading_progressbar.setFixedHeight(12)
 
     # Assemble initial UI
     self.layout.addStretch(1)
@@ -120,7 +128,8 @@ class MainGUI(QWidget):
     # This is important since the size of the layout is fully dependent on the size of the wrapper
     # And obviously, the wrapper's size won't automatically change
 
-    self.thumb_layout_wrapper.setFixedSize(self.thumb_layout_scroll_area.size())
+    self.thumb_layout_wrapper.setFixedWidth(self.thumb_layout_scroll_area.size().width())
+    self.thumb_layout_wrapper.setFixedHeight(int(self.thumb_layout.total_height))
 
   def count_files(self, folder_path):
 
@@ -189,15 +198,16 @@ class MainGUI(QWidget):
 
     self.reorganize_ui()
 
-    # Prepare progressbar
-    self.loading_progressbar.setMaximum(self.file_count)
-    self.loading_progressbar.setFormat("%v/%m files inported...")
+    self.loading_progressbar.setVisible(True)
 
     # Begin thread
-    self.import_files_thread = ImportFiles(folder_path, self.cell_width, self.cell_height)
+    self.import_files_thread = ImportFiles(folder_path, self.thumb_height)
 
     self.import_files_thread.finished.connect(self.post_load)
     self.import_files_thread.add_thumbnail_to_grid.connect(self.add_thumbnail_to_grid)
+    self.import_files_thread.format_progressbar.connect(self.format_progressbar)
+    self.import_files_thread.max_progressbar.connect(self.max_progressbar)
+    self.import_files_thread.increment_progressbar.connect(self.increment_progressbar)
 
     # Start timing loading process
     self.load_start = time.time()
@@ -206,29 +216,86 @@ class MainGUI(QWidget):
 
   # SIGNALS
 
-  def add_thumbnail_to_grid(self, thumbnail):
+  def format_progressbar(self, fmt):
+    # Allows the loading thread to change the format of the progressbar
 
-    # Increment progressbar value
+    # Reset the progressbar first because we only call this at the start of a new operation
+    self.loading_progressbar.reset()
+
+    # We add a space before the text because setContentsMargins doesn't work on QProgressbars fsr
+    self.loading_progressbar.setFormat(f" {fmt}")
+
+  def max_progressbar(self, val):
+    # Allows the loading thread to set the maximum value of the progressbar
+
+    self.loading_progressbar.setMaximum(val)
+
+  def increment_progressbar(self):
+    # Allows the loading thread to increment the progressbar
+
     self.loading_progressbar.setValue(self.loading_progressbar.value() + 1)
 
-    # Set the size of the wrapper for thumb_layout to the size of the QScrollArea it's in
-    # For some reason you can only do this 
-    self.thumb_layout_wrapper.setFixedSize(self.thumb_layout_scroll_area.size())
+  def show_thumb_layout(self):
+    # Allows the loading thread to show the thumb layout only right before the thumbnail insertion
 
-    # Create item to add to our layout, and pixmap
-    self.item = QLabel()
-    self.thumb_data = QPixmap()
-    
-    # Load bytearray into the pixmap
-    self.thumb_data.loadFromData(thumbnail)
+    self.thumb_layout_wrapper.setVisible(True)
 
-    # Attach the pixmap to the label
-    self.item.setPixmap(self.thumb_data)
+  def add_thumbnail_to_grid(self, arg_tuple):
+    # Adds a thumbnail or marker to the thumb layout
 
-    # Add the item to the layout
-    self.item.setFixedWidth(self.item.sizeHint().width())
-    self.thumb_layout.addWidget(self.item)
-    self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
+    idx = arg_tuple[0] # Index in the thumbs list to reference item positions for now
+    data = arg_tuple[1]
+    creation_date = arg_tuple[2]
+    creation_time = arg_tuple[3]
+
+    if isinstance(data, bytes): # If the data we receive is a bytearray of a thumbnail...
+
+      # Create item to add to our layout, and Pixmap for the item
+      thumb_item = QLabel()
+      thumb_data = QPixmap()
+      
+      # Load bytearray into the pixmap
+      thumb_data.loadFromData(data)
+
+      # Attach the pixmap to the label
+      thumb_item.setPixmap(thumb_data)
+
+      # Add the item to the layout
+      thumb_item.setFixedWidth(thumb_item.sizeHint().width())
+      self.thumb_layout.addWidget(thumb_item)
+      self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
+
+      # Add an entry to our thumbs list
+      current_thumb_dict = {
+        "idx": idx,
+        "date": creation_date,
+        "time": creation_time,
+        "safety": '',
+        "tags": []}
+
+      self.thumb_list.append(current_thumb_dict.copy())
+
+    elif isinstance(data, str): # If we recieve a string (when we get a marker)...
+
+      # Initialize custom Datesection item
+      datesection = DatesectionItem()
+
+      # Set text of Datesection item to "Unknown Date" if no date found
+      if creation_date[0] == "0000": 
+
+        datesection.setText("Unknown Date")
+      
+      else:
+
+        datesection.setDate(creation_date[0], creation_date[1], creation_date[2])
+        
+      datesection.setFixedHeight(self.thumb_height)
+      datesection.setContentsMargins(10, 0, 10, 0)
+
+      self.thumb_layout.addWidget(datesection)
+
+    # Increment progressbar
+    self.increment_progressbar()
 
   def post_load(self):
 
@@ -237,6 +304,11 @@ class MainGUI(QWidget):
     self.layout.removeWidget(self.loading_progressbar)
     self.loading_progressbar.close()
 
+    # Set the size of the wrapper for thumb_layout to the size of the QScrollArea it's in
+    self.thumb_layout_wrapper.setFixedWidth(self.thumb_layout_scroll_area.size().width())
+
+    # WHY DOESNT THIS CHANGE THE HEIGHT, BUT RESIZEEVENT DOES??????????????
+    self.thumb_layout_wrapper.setFixedHeight(int(self.thumb_layout.total_height))
 
     print(f"Loading finished in {(time.time() - self.load_start) * 1000}ms.")
 
