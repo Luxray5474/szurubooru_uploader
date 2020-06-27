@@ -11,7 +11,10 @@ class FlowLayout(QLayout):
 
     self.h_spacing = hspacing
     self.v_spacing = vspacing
+
     self.items = []
+
+    self.total_height = 0
 
     self.setContentsMargins(margin, margin, margin, margin)
 
@@ -91,7 +94,7 @@ class FlowLayout(QLayout):
     # This is normally used to do layout, but here it passes a rect to the actual function
 
     super(FlowLayout, self).setGeometry(rect)
-    self.doLayout(rect, False)
+    self.total_height = self.doLayout(rect, False)
 
   def sizeHint(self):
     # Returns the minimum size of the layout
