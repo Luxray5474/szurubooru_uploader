@@ -103,6 +103,8 @@ class MainGUI(QWidget):
     self.thumb_layout_scroll_area = QScrollArea()
     self.thumb_layout_wrapper = QWidget(self.thumb_layout_scroll_area)
     self.thumb_layout = FlowLayout(self.thumb_layout_wrapper, -1, 5, 5)
+
+    self.thumb_layout.update_wrapper_height.connect(self.update_thumb_layout_wrapper_height)
     
     self.thumb_layout_wrapper.setVisible(False)
 
@@ -124,12 +126,10 @@ class MainGUI(QWidget):
     self.setLayout(self.layout)
 
   def resizeEvent(self, event):
-    # Override the resizeEvent of the main window to update thumb_layout_wrapper's size
-    # This is important since the size of the layout is fully dependent on the size of the wrapper
-    # And obviously, the wrapper's size won't automatically change
+    # Override the resizeEvent of the main window to to automatically update the wrapper's width
+    # to what is needed, since it doesn't update by itself.
 
     self.thumb_layout_wrapper.setFixedWidth(self.thumb_layout_scroll_area.size().width())
-    self.thumb_layout_wrapper.setFixedHeight(int(self.thumb_layout.total_height))
 
   def count_files(self, folder_path):
 
@@ -203,8 +203,7 @@ class MainGUI(QWidget):
     # Begin thread
     self.import_files_thread = ImportFiles(folder_path, self.thumb_height)
 
-    self.import_files_thread.finished.connect(self.post_load)
-    self.import_files_thread.add_thumbnail_to_grid.connect(self.add_thumbnail_to_grid)
+    self.import_files_thread.send_thumbnails_signal.connect(self.add_thumbnails_to_grid)    
     self.import_files_thread.format_progressbar.connect(self.format_progressbar)
     self.import_files_thread.max_progressbar.connect(self.max_progressbar)
     self.import_files_thread.increment_progressbar.connect(self.increment_progressbar)
@@ -240,62 +239,72 @@ class MainGUI(QWidget):
 
     self.thumb_layout_wrapper.setVisible(True)
 
-  def add_thumbnail_to_grid(self, arg_tuple):
-    # Adds a thumbnail or marker to the thumb layout
+  def add_thumbnails_to_grid(self, thumbs_list):
+    # Adds each thumbnail from the given list to the thumb layout
 
-    idx = arg_tuple[0] # Index in the thumbs list to reference item positions for now
-    data = arg_tuple[1]
-    creation_date = arg_tuple[2]
-    creation_time = arg_tuple[3]
+    print(f"Adding {len(thumbs_list)} total elements to the layout...")
 
-    if isinstance(data, bytes): # If the data we receive is a bytearray of a thumbnail...
+    for idx, (data, creation_date, creation_time) in enumerate(thumbs_list):
 
-      # Create item to add to our layout, and Pixmap for the item
-      thumb_item = QLabel()
-      thumb_data = QPixmap()
-      
-      # Load bytearray into the pixmap
-      thumb_data.loadFromData(data)
+      if isinstance(data, bytes): # If the dats is a bytearray of a thumbnail...
 
-      # Attach the pixmap to the label
-      thumb_item.setPixmap(thumb_data)
-
-      # Add the item to the layout
-      thumb_item.setFixedWidth(thumb_item.sizeHint().width())
-      self.thumb_layout.addWidget(thumb_item)
-      self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
-
-      # Add an entry to our thumbs list
-      current_thumb_dict = {
-        "idx": idx,
-        "date": creation_date,
-        "time": creation_time,
-        "safety": '',
-        "tags": []}
-
-      self.thumb_list.append(current_thumb_dict.copy())
-
-    elif isinstance(data, str): # If we recieve a string (when we get a marker)...
-
-      # Initialize custom Datesection item
-      datesection = DatesectionItem()
-
-      # Set text of Datesection item to "Unknown Date" if no date found
-      if creation_date[0] == "0000": 
-
-        datesection.setText("Unknown Date")
-      
-      else:
-
-        datesection.setDate(creation_date[0], creation_date[1], creation_date[2])
+        # Create item to add to our layout, and Pixmap for the item
+        thumb_item = QLabel()
+        thumb_data = QPixmap()
         
-      datesection.setFixedHeight(self.thumb_height)
-      datesection.setContentsMargins(10, 0, 10, 0)
+        # Load bytearray into the pixmap
+        thumb_data.loadFromData(data)
 
-      self.thumb_layout.addWidget(datesection)
+        # Attach the pixmap to the label
+        thumb_item.setPixmap(thumb_data)
 
-    # Increment progressbar
-    self.increment_progressbar()
+        # Add the item to the layout
+        thumb_item.setFixedWidth(thumb_item.sizeHint().width())
+        self.thumb_layout.addWidget(thumb_item)
+        self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
+
+        # Add an entry to our thumbs list
+        current_thumb_dict = {
+          "idx": idx,
+          "date": creation_date,
+          "time": creation_time,
+          "safety": '',
+          "tags": []}
+
+        self.thumb_list.append(current_thumb_dict.copy())
+
+      elif isinstance(data, str): # If the data is a string (when we get a marker)...
+
+        # Initialize custom Datesection item
+        datesection = DatesectionItem()
+
+        # Set text of Datesection item to "Unknown Date" if no date found
+        if creation_date[0] == "0000": 
+
+          datesection.setText("Unknown Date")
+        
+        else:
+          
+          # Otherwise make it the date
+          datesection.setDate(creation_date[0], creation_date[1], creation_date[2])
+
+        datesection.setFixedHeight(self.thumb_height)
+        datesection.setContentsMargins(10, 0, 10, 0)
+
+        self.thumb_layout.addWidget(datesection)
+
+      # Increment progressbar
+      self.increment_progressbar()
+    
+    # Finally, perform post-load actions
+    self.post_load()
+
+  def update_thumb_layout_wrapper_height(self, height):
+    # Allows the FlowLayout to set the height it needs *when it's ready*
+    # Before, the height was set after all the thumbnail-adding was complete, leading to a race
+    # condition problem. To sovle that, this is run everytime the layout is updated to avoid that.
+
+    self.thumb_layout_wrapper.setFixedHeight(int(self.thumb_layout.total_height)) 
 
   def post_load(self):
 
@@ -306,9 +315,6 @@ class MainGUI(QWidget):
 
     # Set the size of the wrapper for thumb_layout to the size of the QScrollArea it's in
     self.thumb_layout_wrapper.setFixedWidth(self.thumb_layout_scroll_area.size().width())
-
-    # WHY DOESNT THIS CHANGE THE HEIGHT, BUT RESIZEEVENT DOES??????????????
-    self.thumb_layout_wrapper.setFixedHeight(int(self.thumb_layout.total_height))
 
     print(f"Loading finished in {(time.time() - self.load_start) * 1000}ms.")
 

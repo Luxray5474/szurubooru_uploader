@@ -11,10 +11,11 @@ from FileExts     import FileExts
 
 class ImportFiles(QThread):
 
-  finished = pyqtSignal()
+  # Emmitted when we are ready to send the whole list of thumbnails to the main thread
+  # This also acts as a finished signal.
+  send_thumbnails_signal = pyqtSignal(list)
 
-  add_thumbnail_to_grid = pyqtSignal(tuple)
-
+  # Emmitted in order to format and modify the progressbar
   format_progressbar = pyqtSignal(str)
   max_progressbar = pyqtSignal(int)
   increment_progressbar = pyqtSignal()
@@ -33,7 +34,9 @@ class ImportFiles(QThread):
 
       for name in files:
 
-        ext = name.split('.')[-1]
+        # Make sure these are lowercased, some extensions are all caps  
+        ext = name.split('.')[-1].lower()
+
         if ext in FileExts.image_exts or ext in FileExts.video_exts or ext in FileExts.misc_exts:
 
           self.file_count += 1
@@ -41,7 +44,7 @@ class ImportFiles(QThread):
   def run(self):
     # Main function that gets moved to the separate thread
 
-    print("Loading images...")
+    print("Processing files...")
 
     # First, generate thumbnails and put it that and metadata into a list
     thumbnails = self.generate_thumbnails(self.files)
@@ -55,9 +58,6 @@ class ImportFiles(QThread):
     # Finally, send the thumbnails and section markers over to the main thread
     self.send_thumbnails(thumbnails)
 
-    # We're finished
-    self.finished.emit()
-
   def generate_thumbnails(self, raw_files):
     # Generates thumbnails from files found in the selected directory
     # Returns an array of tuples which contain (img_byte_array, creation_date, creation_time)
@@ -69,7 +69,6 @@ class ImportFiles(QThread):
     # Format progressbar to display current action
     self.format_progressbar.emit("Generating thumbnails - %v/%m")
     self.max_progressbar.emit(self.file_count)
-    print(self.file_count)
 
     for file in raw_files:
 
@@ -78,7 +77,7 @@ class ImportFiles(QThread):
       # Only process files, not directories
       if file.is_file():
 
-        file_ext = file.name.split('.')[-1]
+        file_ext = file.name.split('.')[-1].lower()
 
         if file_ext in FileExts.image_exts: # For image files...
 
@@ -128,33 +127,47 @@ class ImportFiles(QThread):
             im = None
 
         elif file_ext in FileExts.video_exts: # For video files...
+            
+          # Get video metadata
+          metadata = self.get_video_metadata(file.path)
 
-          # Read video file
-          try:
+          # Only attempt to load the video if ffmpeg is able to get metadata
+          # This prevents ffmpeg inside cv2 from printing an unhandleable error
+          if metadata == False:
 
-            frames = cv2.VideoCapture(file.path)
-
-          except cv2.error().code as e: # TODO: same as the images
-
-            print(f"Error while loading {file.name} with error {e}")
+            print(f"Error: Loading {file.name} failed, moov atom not found. Skipping...")
 
           else:
 
-            # Resize frame | !!! .read() result is a tuple, the 2nd value is the ndarray we need.
-            first_frame = self.proper_resize(frames.read()[1], self.thumb_height)
+            creation_date = metadata[0]
+            creation_time = metadata[1]
 
-            # Encode first frame into bytearray
-            img_byte_array = bytes(cv2.imencode(".png", first_frame)[1])
+            # Read video file
+            try:
 
-            # Get video metadata
-            creation_date, creation_time = self.get_video_metadata(file.path)
+              frames = cv2.VideoCapture(file.path)
+              first_frame = frames.read()[1]
 
-            # Add the bytearray and info to the list
-            thumbs.append((img_byte_array, creation_date, creation_time))
+            except cv2.error().code as e: # TODO: same as the images
 
-            # Free up memory
-            frames.release()
-            cv2.destroyAllWindows()
+              print(f"Error while loading {file.name} with error {e}")
+              exit(1)
+
+            else:
+
+              # Resize frame | !!! .read() result is a tuple, the 2nd value is the ndarray we need.
+              resized_first_frame = self.proper_resize(first_frame, self.thumb_height)
+
+              # Encode first frame into bytearray
+              img_byte_array = bytes(cv2.imencode(".png", resized_first_frame)[1])
+
+
+              # Add the bytearray and info to the list
+              thumbs.append((img_byte_array, creation_date, creation_time))
+
+              # Free up memory
+              frames.release()
+              cv2.destroyAllWindows()
 
       # Increment progressbar after every cycle
       self.increment_progressbar.emit()
@@ -169,10 +182,16 @@ class ImportFiles(QThread):
     # Also used for inserting markers at the current index
     thumbs_iter = 0
 
-    for idx, (b, creation_date, t) in enumerate(thumbs):
+    print("Adding datesections...")
+
+    for idx, (data, creation_date, creation_time) in enumerate(thumbs):
 
       # If we are at the start of the list or if previous date is different from the current date
       if not thumbs[idx - 1] or thumbs[idx - 1][1] != creation_date:
+
+        # Split dates/times by any non-number character into tuple for consistency
+        creation_date = tuple(re.split("[^0-9]", creation_date))
+        creation_time = tuple(re.split("[^0-9]", creation_time))
 
         # Add a marker to the list at the current index
         thumbs.insert(idx, ('M', creation_date, None))
@@ -180,30 +199,26 @@ class ImportFiles(QThread):
     return thumbs
 
   def send_thumbnails(self, thumbs):
-    # Sends thumbnails to the main thread using pyqtSignals
+    # Sends the whole list of thumbnails to the main thread using pyqtSignals
+    # This used to have a for loop sending each tuple in the list one by one.
+    # However, this created a premature finish problem, because the thread would emit the next
+    # signal regardless of whether it was finished or not. Then, it would emit the finished signal
+    # before all the thumbnails have been added. 
 
+    print("Sending thumbnails...")
+
+    # Format the progressbar
     self.format_progressbar.emit("Inserting thumbnails - %v/%m")
     self.max_progressbar.emit(len(thumbs))
 
-    print(len(thumbs))
+    # Send the list
+    self.send_thumbnails_signal.emit(thumbs) 
 
-    for idx, (data, creation_date, creation_time) in enumerate(thumbs):
-      
-      # Split dates/times by any non-number character into tuple for consistency
-      creation_date = tuple(re.split("[^0-9]", creation_date))
-
-      if creation_time != None:
-        creation_time = tuple(re.split("[^0-9]", creation_time))
-
-      # Send it over
-      self.add_thumbnail_to_grid.emit((idx, data, creation_date, creation_time))
-
-    # We don't need this list anymore
+    # We don't need this list anymore after that
     thumbs = None
 
   def get_video_metadata(self, path):
     # Gets metadata for video files, separate function because it's quite long
-    # Currently only gets creation date
     # Returns a tuple of (creation_date, creation_time)
 
     # We use try block because we need to catch an exception
@@ -227,28 +242,36 @@ class ImportFiles(QThread):
       print("FATAL: ffmpeg not found, that most likely means you don't have it installed.")
       exit(1)
 
-    # Attempt to find the creation date in metadata
-    try:
+    # Skip if ffmpeg returns a moov atom not found error
+    if re.search(r"moov", output):
 
-      # If it's stupid but works, it ain't stupid.
-      # 1. get whatever is after the first "creation_time"
-      # 2. get whatever is before the 'Z'
-      # 3. get whatever is after the ": "
-      # 4. split by 'T'
-      creation = output.split("creation_time")[1].split('Z')[0].split(": ")[1].split('T')
-
-    except IndexError:
-
-      # If we cannot split the output by "creation_time", assume it doesn't exist
-      creation_date = creation_time = None
+      return False
 
     else:
 
-      creation_date = creation[0]
-      creation_time = creation[1].split('.')[0]
+      # Attempt to find the creation date in metadata
+      try:
+
+        # If it's stupid but works, it ain't stupid.
+        # 1. get whatever is after the first "creation_time"
+        # 2. get whatever is before the 'Z'
+        # 3. get whatever is after the ": "
+        # 4. split by 'T'
+        creation = output.split("creation_time")[1].split('Z')[0].split(": ")[1].split('T')
+
+      except IndexError:
+
+        # If we cannot split the output by "creation_time", assume it doesn't exist
+        creation_date = "0000-00-00"
+        creation_time = "00:00:00"
+
+      else:
+
+        creation_date = creation[0]
+        creation_time = creation[1].split('.')[0]
 
       # Return a tuple of the collected information
-      return creation_date, creation_time
+      return (creation_date, creation_time)
 
   def proper_resize(self, img_data, desired_height):
     # Calculates the proportion of the desired height to the original height, then resizes the

@@ -1,9 +1,12 @@
 import sys
 
-from PyQt5.QtCore     import Qt, QRect, QSize, QPoint
+from PyQt5.QtCore     import Qt, QRect, QSize, QPoint, pyqtSignal
 from PyQt5.QtWidgets  import QLayout, QSizePolicy, QStyle
 
 class FlowLayout(QLayout):
+
+  # This signal is used to update the wrapper's height every layout update.
+  update_wrapper_height = pyqtSignal(int)
 
   def __init__(self, parent=None, margin=-1, hspacing=-1, vspacing=-1):
 
@@ -95,6 +98,9 @@ class FlowLayout(QLayout):
 
     super(FlowLayout, self).setGeometry(rect)
     self.total_height = self.doLayout(rect, False)
+
+    # Update the wrapper height
+    self.update_wrapper_height.emit(self.total_height)
 
   def sizeHint(self):
     # Returns the minimum size of the layout
