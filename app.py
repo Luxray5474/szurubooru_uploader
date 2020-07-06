@@ -246,34 +246,8 @@ class MainGUI(QWidget):
 
     for idx, (data, creation_date, creation_time) in enumerate(thumbs_list):
 
-      if isinstance(data, bytes): # If the dats is a bytearray of a thumbnail...
-
-        # Create item to add to our layout, and Pixmap for the item
-        thumb_item = QLabel()
-        thumb_data = QPixmap()
-        
-        # Load bytearray into the pixmap
-        thumb_data.loadFromData(data)
-
-        # Attach the pixmap to the label
-        thumb_item.setPixmap(thumb_data)
-
-        # Add the item to the layout
-        thumb_item.setFixedWidth(thumb_item.sizeHint().width())
-        self.thumb_layout.addWidget(thumb_item)
-        self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
-
-        # Add an entry to our thumbs list
-        current_thumb_dict = {
-          "idx": idx,
-          "date": creation_date,
-          "time": creation_time,
-          "safety": '',
-          "tags": []}
-
-        self.thumb_list.append(current_thumb_dict.copy())
-
-      elif isinstance(data, str): # If the data is a string (when we get a marker)...
+      # If the previous date isn't the current date or if we are at the start, add a datesection
+      if not thumbs_list[idx - 1] or thumbs_list[idx - 1][1] != creation_date:
 
         # Initialize custom Datesection item
         datesection = DatesectionItem()
@@ -292,6 +266,31 @@ class MainGUI(QWidget):
         datesection.setContentsMargins(10, 0, 10, 0)
 
         self.thumb_layout.addWidget(datesection)
+
+      # Create item to add to our layout, and Pixmap for the item
+      thumb_item = QLabel()
+      thumb_data = QPixmap()
+      
+      # Load bytearray into the pixmap
+      thumb_data.loadFromData(data)
+
+      # Attach the pixmap to the label
+      thumb_item.setPixmap(thumb_data)
+
+      # Add the item to the layout
+      thumb_item.setFixedWidth(thumb_item.sizeHint().width())
+      self.thumb_layout.addWidget(thumb_item)
+      self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
+
+      # Add an entry to our thumbs list
+      current_thumb_dict = {
+        "idx": idx,
+        "date": creation_date,
+        "time": creation_time,
+        "safety": '',
+        "tags": []}
+
+      self.thumb_list.append(current_thumb_dict.copy())
 
       # Increment progressbar
       self.increment_progressbar()

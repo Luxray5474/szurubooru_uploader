@@ -52,9 +52,6 @@ class ImportFiles(QThread):
     # Then, sort those thumbnails by date and time created
     thumbnails.sort(reverse=True, key=lambda tup: (tup[1], tup[2]))
 
-    # Add section markers (add a marker between two different dates)
-    thumbnails = self.mark_date_sections(thumbnails)
-
     # Finally, send the thumbnails and section markers over to the main thread
     self.send_thumbnails(thumbnails)
 
@@ -120,9 +117,6 @@ class ImportFiles(QThread):
               creation_date = "0000-00-00"
               creation_time = "00:00:00"
 
-            # Add everything to the thumbnail list
-            thumbs.append((img_byte_array, creation_date, creation_time))
-
             # Cleanup
             im = None
 
@@ -161,40 +155,19 @@ class ImportFiles(QThread):
               # Encode first frame into bytearray
               img_byte_array = bytes(cv2.imencode(".png", resized_first_frame)[1])
 
-
-              # Add the bytearray and info to the list
-              thumbs.append((img_byte_array, creation_date, creation_time))
-
               # Free up memory
               frames.release()
               cv2.destroyAllWindows()
 
+      # Split dates/times by any non-number character into tuple for consistency
+      creation_date = tuple(re.split("[^0-9]", creation_date))
+      creation_time = tuple(re.split("[^0-9]", creation_time))
+
+      # Add the bytearray and info to the list
+      thumbs.append((img_byte_array, creation_date, creation_time))
+
       # Increment progressbar after every cycle
       self.increment_progressbar.emit()
-
-    return thumbs
-
-  def mark_date_sections(self, thumbs):
-    # Adds section markers, characterized as ('M', <following date>, None)
-    # That will be detected by the thumbnail inserter to add an item beginning a new date "section"
-
-    # Is incremented each cycle and is used to get the previous item in the list
-    # Also used for inserting markers at the current index
-    thumbs_iter = 0
-
-    print("Adding datesections...")
-
-    for idx, (data, creation_date, creation_time) in enumerate(thumbs):
-
-      # If we are at the start of the list or if previous date is different from the current date
-      if not thumbs[idx - 1] or thumbs[idx - 1][1] != creation_date:
-
-        # Split dates/times by any non-number character into tuple for consistency
-        creation_date = tuple(re.split("[^0-9]", creation_date))
-        creation_time = tuple(re.split("[^0-9]", creation_time))
-
-        # Add a marker to the list at the current index
-        thumbs.insert(idx, ('M', creation_date, None))
 
     return thumbs
 
