@@ -131,6 +131,8 @@ class ImportFiles(QThread):
 
             print(f"Error: Loading {file.name} failed, moov atom not found. Skipping...")
 
+            creation_date = False
+
           else:
 
             creation_date = metadata[0]
@@ -159,12 +161,15 @@ class ImportFiles(QThread):
               frames.release()
               cv2.destroyAllWindows()
 
-      # Split dates/times by any non-number character into tuple for consistency
-      creation_date = tuple(re.split("[^0-9]", creation_date))
-      creation_time = tuple(re.split("[^0-9]", creation_time))
+      if creation_date != False:
+        # Only if we aren't skipping a file
+        
+        # Split dates/times by any non-number character into tuple for consistency
+        creation_date = tuple(re.split("[^0-9]", creation_date))
+        creation_time = tuple(re.split("[^0-9]", creation_time))
 
-      # Add the bytearray and info to the list
-      thumbs.append((img_byte_array, creation_date, creation_time))
+        # Add the bytearray and info to the list
+        thumbs.append((img_byte_array, creation_date, creation_time))
 
       # Increment progressbar after every cycle
       self.increment_progressbar.emit()
