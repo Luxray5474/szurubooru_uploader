@@ -16,7 +16,8 @@ from Colors             import Colors       # Colors Class
 from ImportFiles        import ImportFiles  # ImporttFiles QThread
 from FlowLayout         import FlowLayout   # Flow layout
 
-from items.DatesectionItem import DatesectionItem # Datesection thumb layout item
+from items.DatesectionItem  import DatesectionItem  # Datesection item
+from items.ThumbnailItem    import ThumbnailItem    # Thumbnail item
 
 WIDTH = 900                                 # Starting width
 HEIGHT = 500                                # Starting height
@@ -191,7 +192,6 @@ class MainGUI(QWidget):
     self.layout.setStretch(2, 0)
     self.layout.setStretchFactor(self.thumb_layout_scroll_area, 150)
 
-
   def start_import_files_thread(self, folder_path):
 
     print("Starting thread...")
@@ -267,19 +267,12 @@ class MainGUI(QWidget):
 
         self.thumb_layout.addWidget(datesection)
 
-      # Create item to add to our layout, and Pixmap for the item
-      thumb_item = QLabel()
-      thumb_data = QPixmap()
-      
-      # Load bytearray into the pixmap
-      thumb_data.loadFromData(data)
-
-      # Attach the pixmap to the label
-      thumb_item.setPixmap(thumb_data)
+      # Create item to add to our layout, and load the bytearray into it
+      item = ThumbnailItem()
+      item.loadFromData(data)
 
       # Add the item to the layout
-      thumb_item.setFixedWidth(thumb_item.sizeHint().width())
-      self.thumb_layout.addWidget(thumb_item)
+      self.thumb_layout.addWidget(item)
       self.thumb_layout_scroll_area.setWidget(self.thumb_layout_wrapper)
 
       # Add an entry to our thumbs list
