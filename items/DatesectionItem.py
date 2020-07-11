@@ -21,7 +21,6 @@ class DatesectionItem(QWidget):
     self.layout = QVBoxLayout()
     self.label = QLabel()
 
-    # self.label.setAlignment(Qt.AlignCenter)
     self.label.setObjectName("dateSectionLabel")
     self.label.setContentsMargins(10, 0, 10, 0)
     self.label.setFont(Fonts.NotoSansDisplay("Bold", 13))
@@ -42,10 +41,8 @@ class DatesectionItem(QWidget):
     final_string = f"{calendar.month_name[month + 1]} {day}, {year}"
 
     self.label.setText(final_string)
-    #self.label.setFixedWidth(self.normal_width)
 
   def setText(self, text):
     # Set text and width of inner QLabel
 
     self.label.setText(text)
-    #self.setFixedWidth(self.unknown_width)

@@ -285,7 +285,8 @@ class MainGUI(QWidget):
       # Increment progressbar
       self.increment_progressbar()
     
-    # Finally, perform post-load actions
+    # Finally, cleanup and perform post-load actions
+    thumbs_list = None
     self.post_load()
 
   def update_thumb_layout_wrapper_height(self, height):
@@ -293,7 +294,7 @@ class MainGUI(QWidget):
     # Before, the height was set after all the thumbnail-adding was complete, leading to a race
     # condition problem. To sovle that, this is run everytime the layout is updated to avoid that.
 
-    self.thumb_layout_wrapper.setFixedHeight(int(self.thumb_layout.total_height)) 
+    self.thumb_layout_wrapper.setFixedHeight(height) 
 
   def post_load(self):
 

@@ -8,6 +8,10 @@ class ThumbnailItem(QLabel):
 
     super(ThumbnailItem, self).__init__()
 
+    # Tells FlowLayout whether or not to start a newline before or after this widget
+    self.newline_before = False
+    self.newline_after = False
+
     self.thumb = QPixmap()
 
   def loadFromData(self, data):

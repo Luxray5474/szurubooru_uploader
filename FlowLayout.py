@@ -1,5 +1,3 @@
-import sys
-
 from PyQt5.QtCore     import Qt, QRect, QSize, QPoint, pyqtSignal
 from PyQt5.QtWidgets  import QLayout, QSizePolicy, QStyle
 
@@ -151,15 +149,17 @@ class FlowLayout(QLayout):
       h_space = self.horizontalSpacing()
       v_space = self.verticalSpacing()
 
-      # If somehow h_space is -1 we use the widget's style to space them
       if h_space == -1:
+        # If somehow h_space is -1 we use the widget's style to space them
+        
         h_space = widget.style().layoutSpacing(
           QSizePolicy.PushButton,
           QSizePolicy.PushButton,
           Qt.Horizontal)
 
-      # Same with this
       if v_space == -1:
+        # Same with this
+        
         v_space = widget.style().layoutSpacing(
           QSizePolicy.PushButton,
           QSizePolicy.PushButton,
@@ -169,9 +169,9 @@ class FlowLayout(QLayout):
       # position for the next item
       next_x = x + item.sizeHint().width() + h_space
 
-      # If the next position oversteps the right side of the effective area, "wrap around"
       if next_x - h_space > effective.right() and line_height > 0 or \
          widget.newline_before == True:
+        # If the next position oversteps the right side of the effective area, "wrap around"
 
         # Make the starting x pos of the next item the left of the effective area
         x = effective.x() 
@@ -183,8 +183,8 @@ class FlowLayout(QLayout):
         # Reset the line height
         line_height = 0
 
-      # Place the item if we aren't simulating the positioning
       if not test_only:
+        # Place the item if we aren't simulating the positioning
 
         # Position the current item on the current position
         item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))

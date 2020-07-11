@@ -1,7 +1,7 @@
 import os
 import subprocess
-import cv2
 import re
+import cv2
 
 from PIL          import Image
 
@@ -205,9 +205,9 @@ class ImportFiles(QThread):
     try:
 
       # Use subprocess to run a command, and collect its output
-      # For some reason, when FFMPEG errors, it outputs *all* output into atderr, so we have
+      # For some reason, when FFMPEG errors, it outputs *all* output into stderr, so we have
       # to pipe it to stdout.
-      process = subprocess.check_output(["ffmpeg", "-i", path], stderr=subprocess.STDOUT)
+      subprocess.check_output(["ffmpeg", "-i", path], stderr=subprocess.STDOUT)
 
     except subprocess.CalledProcessError as err:
 
