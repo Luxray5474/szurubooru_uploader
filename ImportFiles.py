@@ -248,7 +248,7 @@ class ImportFiles(QThread):
         creation = re.split("[T ]", creation)
 
         creation_date = creation[0]
-        creation_time = re.split("[\r.]",creation[1])
+        creation_time = re.split("[\r.]",creation[1])[0]
 
       # Return a tuple of the collected information
       return (creation_date, creation_time)
