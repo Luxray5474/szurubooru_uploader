@@ -6,6 +6,7 @@ class Colors:
 
   # Common colors
   bg =           "#0A0E14"
+  bg_line =      "#00010A"
   fg =           "#B3B1AD"
   fg_special =   "#FFB454"
   fg_light =     "#3D424D"

@@ -42,3 +42,11 @@ QProgressBar:horizontal {
   border:none;
   color: #B3B1AD
 }
+
+#dateSection {
+  background: #00010A;
+}
+
+#dateSectionLabel {
+  color: #B3B1AD
+}
