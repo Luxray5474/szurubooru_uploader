@@ -234,8 +234,7 @@ class ImportFiles(QThread):
         # 1. get whatever is after the first "creation_time"
         # 2. get whatever is before the 'Z'
         # 3. get whatever is after the ": "
-        # 4. split by 'T'
-        creation = output.split("creation_time")[1].split('Z')[0].split(": ")[1].split('T')
+        creation = output.split("creation_time")[1].split('Z')[0].split(": ")[1]
 
       except IndexError:
 
@@ -245,8 +244,11 @@ class ImportFiles(QThread):
 
       else:
 
+        # Use regex to split in order to account for different notation styles
+        creation = re.split("[T ]", creation)
+
         creation_date = creation[0]
-        creation_time = creation[1].split('.')[0]
+        creation_time = re.split("[\r.]",creation[1])
 
       # Return a tuple of the collected information
       return (creation_date, creation_time)
