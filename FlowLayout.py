@@ -170,7 +170,8 @@ class FlowLayout(QLayout):
       next_x = x + item.sizeHint().width() + h_space
 
       # If the next position oversteps the right side of the effective area, "wrap around"
-      if next_x - h_space > effective.right() and line_height > 0:
+      if next_x - h_space > effective.right() and line_height > 0 or \
+         widget.newline_before == True:
 
         # Make the starting x pos of the next item the left of the effective area
         x = effective.x() 
@@ -182,16 +183,25 @@ class FlowLayout(QLayout):
         # Reset the line height
         line_height = 0
 
+      # Place the item if we aren't simulating the positioning
       if not test_only:
 
         # Position the current item on the current position
         item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
 
-      # Set x to the next x position in preperation for the next item
-      x = next_x
-
       # Set line height to the tallest item
       line_height = max(line_height, item.sizeHint().height())
+
+      if widget.newline_after == True:
+        # If the widget needs a newline after, start a new line again
+
+        # Just add to the y...
+        y = y + line_height + v_space
+
+      else:
+        # Otherwise, move the x in preperation for the next item
+        
+        x = next_x
 
     # Return the height of the current line
     return y + line_height - rect.y() + bottom

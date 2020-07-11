@@ -262,9 +262,6 @@ class MainGUI(QWidget):
           # Otherwise make it the date
           datesection.setDate(creation_date[0], creation_date[1], creation_date[2])
 
-        datesection.setFixedHeight(self.thumb_height)
-        datesection.setContentsMargins(10, 0, 10, 0)
-
         self.thumb_layout.addWidget(datesection)
 
       # Create item to add to our layout, and load the bytearray into it
