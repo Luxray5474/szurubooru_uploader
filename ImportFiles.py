@@ -161,7 +161,7 @@ class ImportFiles(QThread):
               frames.release()
               cv2.destroyAllWindows()
 
-      if creation_date != False:
+      if creation_date != (False or None):
         # Only if we aren't skipping a file
         
         # Split dates/times by any non-number character into tuple for consistency
@@ -170,6 +170,8 @@ class ImportFiles(QThread):
 
         # Add the bytearray and info to the list
         thumbs.append((img_byte_array, creation_date, creation_time))
+
+        creation_date = None
 
       # Increment progressbar after every cycle
       self.increment_progressbar.emit()
