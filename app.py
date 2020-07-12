@@ -4,7 +4,7 @@ import time
 import cv2
 
 # PyQt Imports TODO: make this look better
-from PyQt5.QtCore       import Qt, pyqtSignal, QSize, QVariant
+from PyQt5.QtCore       import Qt, pyqtSignal, QSize, QVariant, QTimer
 from PyQt5.QtGui        import QPixmap, QIcon, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets    import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QProgressBar, QTableView, QFileDialog, QAbstractItemView, QScrollArea, QLayout
 
@@ -309,9 +309,27 @@ class MainGUI(QWidget):
     print(f"Loading finished in {(time.time() - self.load_start) * 1000}ms.")
 
 if __name__ == '__main__':
+  # This block launches the actual app
 
-  # Initialize app
-  app = QApplication(sys.argv)
-  app.setStyleSheet(open(STYLES, 'r').read())
-  ex = App()
-  sys.exit(app.exec_())
+  try:
+    # We put all of this in a try/except to catch KeyboardInterrupts
+    
+    # Initialize app and get the stylesheet
+    app = QApplication(sys.argv)
+    app.setStyleSheet(open(STYLES, 'r').read())
+
+    # Initialize our overriden app class
+    ex = App()
+
+    # Start a QTimer as a Python event that runs every 100ms
+    # We do this so Python can throw KeyboardInterrupts
+    timer = QTimer()
+    timer.timeout.connect(lambda: None)
+    timer.start(100)
+
+    # Start it
+    sys.exit(app.exec_())
+
+  except KeyboardInterrupt:
+
+    sys.exit(1)
