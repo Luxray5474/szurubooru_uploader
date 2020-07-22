@@ -1,5 +1,5 @@
-from PyQt5.QtCore     import Qt, QRect, QSize, QPoint, pyqtSignal
-from PyQt5.QtWidgets  import QLayout, QSizePolicy, QStyle
+from PyQt5.QtCore import Qt, QRect, QSize, QPoint, pyqtSignal
+from PyQt5.QtWidgets import QLayout, QSizePolicy, QStyle
 
 class FlowLayout(QLayout):
 

@@ -1,10 +1,10 @@
 import calendar
 
-from PyQt5.QtCore     import Qt
-from PyQt5.QtWidgets  import QLabel, QVBoxLayout, QWidget
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
 
-from Fonts         import Fonts
-from Colors        import Colors
+from assets.Colors import Colors
+from assets.Fonts import Fonts
 
 class DatesectionItem(QWidget):
 
@@ -38,7 +38,7 @@ class DatesectionItem(QWidget):
     day = str(day).zfill(2)
 
     # Final string
-    final_string = f"{calendar.month_name[month + 1]} {day}, {year}"
+    final_string = f"{calendar.month_name[month]} {day}, {year}"
 
     self.label.setText(final_string)
 

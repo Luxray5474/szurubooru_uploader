@@ -1,65 +1,30 @@
-import sys
 import os
 import time
-import cv2
 
-# PyQt Imports TODO: make this look better
-from PyQt5.QtCore       import Qt, pyqtSignal, QSize, QVariant, QTimer
-from PyQt5.QtGui        import QPixmap, QIcon, QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets    import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel, QPushButton, QProgressBar, QTableView, QFileDialog, QAbstractItemView, QScrollArea, QLayout
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QScrollArea, QProgressBar, QFileDialog
 
-from FileExts           import FileExts     # File extension lists
-from Debug              import Debug as dbg # Debug variables
-from Fonts              import Fonts        # Fonts Class
-from Colors             import Colors       # Colors Class
+from assets.Colors import Colors
+from assets.FileExts import FileExts
+from assets.Fonts import Fonts
 
-from ImportFiles        import ImportFiles  # ImporttFiles QThread
-from FlowLayout         import FlowLayout   # Flow layout
+from gui.FlowLayout import FlowLayout
 
-from items.DatesectionItem  import DatesectionItem  # Datesection item
-from items.ThumbnailItem    import ThumbnailItem    # Thumbnail item
+from items.DatesectionItem import DatesectionItem
+from items.ThumbnailItem import ThumbnailItem
 
-WIDTH = 900                                 # Starting width
-HEIGHT = 500                                # Starting height
+from loading.ImportFiles import ImportFiles
 
-FILE_IMPORT = "./assets/file-import.svg"    # File import icon
+from meta.Debug import Debug as dbg
 
-STYLES = "./assets/styles.qss"              # Master stylesheet
+FILE_IMPORT_ICON = "../assets/file-import.svg"
 
-application_start = time.time()
-
-class App(QMainWindow):
-
-  def __init__(self):
-
-    super().__init__()
-
-    self.title = "szurubooru_uploader"
-
-    # Initialize Fonts by adding fonts to database before everything else
-    # We only need to do this once
-    Fonts.init()
-
-    # Initialize main window
-    self.setWindowTitle(self.title)
-    self.setGeometry(0, 0, WIDTH, HEIGHT)
-    self.setStyleSheet(f"background-color: {Colors.bg}")
-
-    print("Started QMainWindow.")
-
-    # Create instance of main tab layout
-    self.tab_widget = MainGUI(self)
-    self.setCentralWidget(self.tab_widget)
-
-    print(f"Finished initializing application in {(time.time() - application_start) * 1000}ms.")
-
-    self.show()
-
-class MainGUI(QWidget):
+class MainGui(QWidget):
 
   def __init__(self, parent):
 
-    super(MainGUI, self).__init__(parent)
+    super(MainGui, self).__init__(parent)
 
     # The height of each thumbnail
     self.thumb_height = 200
@@ -95,7 +60,7 @@ class MainGUI(QWidget):
     self.open_folder.clicked.connect(self.pick_folder)
     self.open_folder.setObjectName("openFolder")
     self.open_folder.setFont(Fonts.NotoSansDisplay("Italic", 12))
-    self.open_folder.setIcon(QIcon(QPixmap(FILE_IMPORT)))
+    self.open_folder.setIcon(QIcon(QPixmap(FILE_IMPORT_ICON)))
     self.open_folder.setIconSize(QSize(14, 14))
 
     # Create main thumbnail layout, wrapper, and scroll area (but don't insert)
@@ -307,29 +272,3 @@ class MainGUI(QWidget):
     self.thumb_layout_wrapper.setFixedWidth(self.thumb_layout_scroll_area.size().width())
 
     print(f"Loading finished in {(time.time() - self.load_start) * 1000}ms.")
-
-if __name__ == '__main__':
-  # This block launches the actual app
-
-  try:
-    # We put all of this in a try/except to catch KeyboardInterrupts
-    
-    # Initialize app and get the stylesheet
-    app = QApplication(sys.argv)
-    app.setStyleSheet(open(STYLES, 'r').read())
-
-    # Initialize our overriden app class
-    ex = App()
-
-    # Start a QTimer as a Python event that runs every 100ms
-    # We do this so Python can throw KeyboardInterrupts
-    timer = QTimer()
-    timer.timeout.connect(lambda: None)
-    timer.start(100)
-
-    # Start it
-    sys.exit(app.exec_())
-
-  except KeyboardInterrupt:
-
-    sys.exit(1)

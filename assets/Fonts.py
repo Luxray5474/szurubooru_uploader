@@ -1,4 +1,4 @@
-from PyQt5.QtGui      import QFont, QFontDatabase
+from PyQt5.QtGui import QFont, QFontDatabase
 
 class Fonts:
 

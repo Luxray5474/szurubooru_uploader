@@ -3,11 +3,11 @@ import subprocess
 import re
 import cv2
 
-from PIL          import Image
+from PIL import Image
 
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from FileExts     import FileExts
+from assets.FileExts import FileExts
 
 class ImportFiles(QThread):
 
