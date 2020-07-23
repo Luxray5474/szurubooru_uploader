@@ -161,7 +161,7 @@ class ImportFiles(QThread):
               frames.release()
               cv2.destroyAllWindows()
 
-      if creation_date != (False or None):
+      if isinstance(creation_date, str):
         # Only if we aren't skipping a file
         
         # Split dates/times by any non-number character into tuple for consistency
