@@ -209,7 +209,7 @@ class MainGui(QWidget):
 
     print(f"Adding {len(thumbs_list)} total elements to the layout...")
 
-    for idx, (data, creation_date, creation_time) in enumerate(thumbs_list):
+    for idx, (data, path, creation_date, creation_time) in enumerate(thumbs_list):
 
       # If the previous date isn't the current date or if we are at the start, add a datesection
       if not thumbs_list[idx - 1] or thumbs_list[idx - 1][1] != creation_date:
@@ -239,11 +239,14 @@ class MainGui(QWidget):
 
       # Add an entry to our thumbs list
       current_thumb_dict = {
-        "idx": idx,
+        "path": path,
+        "ext": path.split('.')[-1]
         "date": creation_date,
         "time": creation_time,
-        "safety": '',
-        "tags": []}
+        "widget": item,
+        "tags": []
+        "selected": False,
+        "safety": ''}
 
       self.thumb_list.append(current_thumb_dict.copy())
 
